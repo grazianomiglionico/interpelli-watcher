@@ -1,0 +1,4 @@
+# Il bot committa state/seen.json da un runner Linux. Senza questa normalizzazione
+# il file tornerebbe con CRLF sul checkout Windows e ogni pull produrrebbe una
+# differenza fantasma sull'intero file.
+* text=auto eol=lf

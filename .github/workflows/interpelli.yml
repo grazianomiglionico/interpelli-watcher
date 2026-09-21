@@ -1,0 +1,98 @@
+name: Controllo interpelli
+
+on:
+  schedule:
+    # Orari in UTC. 04:00-18:00 UTC copre circa le 06:00-19:00 italiane
+    # sia con l'ora legale (UTC+2) sia con l'ora solare (UTC+1).
+    - cron: '0 4-18 * * *'
+  workflow_dispatch: # permette l'esecuzione manuale dalla tab Actions
+
+# Evita che due esecuzioni sovrapposte facciano a botte sul commit di stato.
+concurrency:
+  group: interpelli
+  cancel-in-progress: false
+
+permissions:
+  contents: write # per committare state/seen.json
+  issues: write   # per aprire la issue di notifica
+
+jobs:
+  controlla:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout del repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Controlla se ci sono nuovi interpelli
+        id: check
+        run: node scripts/check-interpelli.mjs
+
+      - name: Apri una issue con i nuovi interpelli
+        if: steps.check.outputs.has_new == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Il titolo arriva da un sito di terzi e contiene virgolette, apici e
+          # trattini tipografici. Passarlo con ${{ }} dentro la riga di comando
+          # lo farebbe interpretare dalla shell: un titolo come
+          # 'Interpello ... - "IC NARDI".' si spezza in due argomenti e gh
+          # fallisce. Qui entra come variabile d'ambiente, mai come codice.
+          TITOLO: ${{ steps.check.outputs.title }}
+        run: |
+          set -u
+          # La label deve esistere, altrimenti gh issue create esce in errore.
+          gh label create interpello \
+            --color FBCA04 \
+            --description "Nuovo interpello rilevato sul sito USP" 2>/dev/null || true
+
+          # Quello che conta è ricevere l'avviso: il corpo è sacrificabile.
+          # Tre tentativi sempre piu' poveri, si esce al primo che riesce.
+          if gh issue create --title "$TITOLO" --body-file nuovi-interpelli.md --label interpello; then
+            exit 0
+          fi
+
+          echo "::warning::Issue completa rifiutata, riprovo con l'elenco breve."
+          if gh issue create --title "$TITOLO" --body-file nuovi-interpelli-breve.md; then
+            exit 0
+          fi
+
+          echo "::warning::Anche l'elenco breve e' stato rifiutato, apro un avviso minimo."
+          gh issue create \
+            --title "$TITOLO" \
+            --body "Nuovi interpelli pubblicati: https://www.uspascolipiceno.it/wordpress/interpelli/
+
+          Il corpo completo non e' stato accettato da GitHub: controlla il log del workflow."
+
+      # --- Notifica Telegram (opzionale) -------------------------------
+      # Attiva solo se imposti i secret TELEGRAM_TOKEN e TELEGRAM_CHAT_ID.
+      - name: Notifica su Telegram
+        if: steps.check.outputs.has_new == 'true' && env.TELEGRAM_TOKEN != ''
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          # Niente parse_mode: il taglio a 3500 byte può spezzare un marcatore
+          # Markdown a metà e Telegram risponde 400 "can't parse entities".
+          # In testo semplice gli URL restano comunque cliccabili.
+          TESTO=$(head -c 3500 nuovi-interpelli.md)
+          curl -sS -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage" \
+            --data-urlencode "chat_id=${TELEGRAM_CHAT_ID}" \
+            --data-urlencode "text=${TESTO}" \
+            --data-urlencode "disable_web_page_preview=false" > /dev/null
+
+      - name: Salva lo stato aggiornato
+        run: |
+          if [ -z "$(git status --porcelain state/seen.json)" ]; then
+            echo "Stato invariato, nessun commit da fare."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add state/seen.json
+          git commit -m "chore: aggiorna stato interpelli [skip ci]"
+          git push
