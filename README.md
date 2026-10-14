@@ -11,8 +11,8 @@ nessun costo, funziona anche a computer spento.
    ultimi 100 della categoria *interpelli*.
 2. Tiene i post che contengono `interpell` nel **titolo**, nella **descrizione** o
    nel **contenuto**, oppure che stanno nella categoria *interpelli* (ID 350). Di
-   questi notifica **solo quelli di scuola primaria** e quelli che non dichiarano il
-   grado.
+   questi notifica **solo quelli di scuola primaria e dell'infanzia** e quelli che non
+   dichiarano il grado.
 3. Confronta gli ID con `state/seen.json`. Se ne trova di nuovi, apre una **issue**
    su questo repository e la **assegna a chi deve candidarsi** (`ASSEGNATARIO` nel
    workflow): l'assegnazione fa partire mail e notifica push anche senza Watch sul repo.
@@ -42,11 +42,12 @@ Sono scelte prese guardando i dati reali del sito, non a occhio:
   una notifica in più che una in meno — ma con l'etichetta `(esito, non una nuova
   candidatura)` così li riconosci dal titolo della mail.
 
-- **Solo primaria, ma i dubbi passano.** Un interpello viene notificato se nomina la
-  primaria (`primaria`, `EEEE`, `ADEE`) oppure se non nomina nessun altro grado.
-  Il secondo caso serve per i post dell'USP intestati col solo numero di protocollo,
-  dove il grado è scritto solo nel PDF. Sui 101 interpelli reali: 52 di primaria,
-  4 senza grado, 45 scartati (secondaria, infanzia, ATA, DSGA).
+- **Solo primaria e infanzia, ma i dubbi passano.** Un interpello viene notificato se
+  nomina la primaria (`primaria`, `EEEE`, `ADEE`) o l'infanzia (`infanzia`, `AAAA`,
+  `ADAA`), oppure se non nomina nessun altro grado. Il terzo caso serve per i post
+  dell'USP intestati col solo numero di protocollo, dove il grado è scritto solo nel
+  PDF. Sui 101 interpelli reali: 52 di primaria, 2 di infanzia, 4 senza grado, 43
+  scartati (secondaria, ATA, DSGA).
 
 Il prezzo di queste scelte è qualche falso positivo: un post che nomina un interpello
 di sfuggita ti arriverà lo stesso. È voluto. Un avviso di troppo si ignora in due
@@ -135,9 +136,9 @@ Lo step è già nel workflow e si attiva da solo quando i secret esistono.
   `23,53 4-18 * * *` = ogni mezz'ora. Evita il minuto 0: è quello in cui GitHub scarta
   più job.
 - **Parola chiave:** costante `KEYWORD` in `scripts/check-interpelli.mjs`.
-- **Grado di scuola:** costanti `PRIMARIA` e `ALTRO_GRADO` in
+- **Grado di scuola:** costanti `GRADO_ACCETTATO` e `ALTRO_GRADO` in
   `scripts/check-interpelli.mjs`. Per riavere tutti i gradi, in `main()` togli
-  `.filter(ePrimaria)`.
+  `.filter(eGradoAccettato)`.
 - **Escludere gli esiti:** nello stesso file, in `main()`, aggiungi
   `.filter((e) => !ESITO.test(e.titolo))` dopo `elementi.filter(eInterpello)`.
 - **Quanti post esaminare:** costante `PER_PAGE` (massimo 100, limite della REST API).

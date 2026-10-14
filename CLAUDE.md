@@ -94,16 +94,22 @@ allinearsi al suo orario evita che l'utente pensi a un bug.
    Il regex richiede che `esito`/`esiti` sia vicino a `interpell`: da solo marcherebbe
    anche titoli come `Decreto esiti assegnazioni provvisorie e utilizzazioni`, che
    interpelli non sono.
-6. **Solo scuola primaria** (richiesta dell'utente del 14/10/2026). `ePrimaria`
-   notifica se titolo, descrizione o contenuto nominano la primaria (`primaria`,
-   `EEEE`, `ADEE`), **oppure se non c'è nessun segnale di un altro grado**
-   (`ALTRO_GRADO`: secondaria, istituti superiori, classi di concorso, infanzia, ATA,
-   DSGA, personale educativo). Il secondo ramo è una **scelta esplicita
+6. **Solo scuola primaria e dell'infanzia** (richieste dell'utente del 14/10/2026,
+   l'infanzia aggiunta dopo). `eGradoAccettato` notifica se titolo, descrizione o
+   contenuto nominano la primaria (`primaria`, `EEEE`, `ADEE`) o l'infanzia
+   (`infanzia`, `AAAA`, `ADAA`), **oppure se non c'è nessun segnale di un altro
+   grado** (`ALTRO_GRADO`: secondaria, istituti superiori, classi di concorso, ATA,
+   DSGA, personale educativo). L'ultimo ramo è una **scelta esplicita
    dell'utente**: i post dell'USP con il solo numero di protocollo hanno il grado
    scritto solo nel PDF, ed è meglio riceverli che perderli. Misura sui 101
-   interpelli reali: 52 primaria esplicita, 4 senza grado (1 interpello, 3 esiti),
-   45 scartati, nessuno dei quali di primaria a un controllo manuale.
-   Falso positivo noto: `Classe di concorsoAS2A` (25564) scritto senza spazio.
+   interpelli reali: 52 primaria, 2 infanzia, 4 senza grado (1 interpello, 3 esiti),
+   43 scartati, nessuno dei quali di primaria o infanzia a un controllo manuale.
+   **Il segnale positivo vince sempre**, anche accanto a segnali di secondaria: un
+   interpello di secondaria con "scuola dell'infanzia, primaria e secondaria"
+   nell'intestazione dell'IC viene notificato. È una **scelta esplicita dell'utente**
+   (nel dubbio la issue va creata), non un difetto da correggere. Nel campione non
+   è mai successo. Falso positivo noto: `Classe di concorsoAS2A` (25564) scritto senza
+   spazio.
 7. **Nello stato finiscono tutti i nuovi interpelli, anche quelli scartati per
    grado.** Se il filtro si allarga, non arriva di colpo tutto lo storico.
 
