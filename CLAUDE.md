@@ -20,7 +20,10 @@ Pagina interpelli: https://www.uspascolipiceno.it/wordpress/interpelli/
 ## Soluzione scelta
 
 **GitHub Actions** con workflow schedulato, notifica tramite **issue aperta sul repo
-stesso** (zero credenziali: GitHub manda già mail e push). Step Telegram opzionale già
+stesso**, **assegnata a `valeriavitali01-hue`** (variabile `ASSEGNATARIO` nello step),
+che è chi si candida. **Non al proprietario del repo**, per scelta dell'utente. Zero
+credenziali: l'assegnazione fa partire mail e push anche senza Watch sul repo, vedi
+"Esercizio reale". Step Telegram opzionale già
 presente, si attiva da solo se esistono i secret `TELEGRAM_TOKEN` e `TELEGRAM_CHAT_ID`.
 
 Scartate: cron locale (vincolo 1), page-monitoring tipo Visualping/Distill (limiti dei
@@ -166,14 +169,38 @@ Verificato il 21/09/2026 contro il sito vero, non solo con fixture:
   esclusi), `formattaDataSito`, `decodifica` (`&amp;` per ultimo), `estraiAllegati`
   (20 allegati unici, deduplica, rimozione prefissi).
 
-**Mai verificata la catena di notifica su GitHub** (apertura issue, mail, push):
-richiede un run reale sul repo. Per provarla: cancellare un ID da `state/seen.json`,
-committare, lanciare il workflow a mano da Actions.
+## Esercizio reale (21/09–14/10/2026)
+
+Dati presi dall'API GitHub e dalla REST del sito il 14/10/2026:
+
+- **Apertura issue e commit dello stato funzionano:** 13 issue aperte, 14 commit del
+  bot, 23 interpelli notificati, 62 run riusciti su 63 (l'unico `failure` è un job
+  cancellato da GitHub senza step eseguiti).
+- **Nessuna notifica arrivava all'utente:** il repo aveva `subscribers_count: 0`, cioè
+  nessun Watch, nemmeno del proprietario. Una issue aperta dal bot in un repo non
+  seguito non avvisa nessuno. Correzione: dopo la creazione, `gh issue edit
+  --add-assignee "$ASSEGNATARIO"`. L'assegnazione notifica a prescindere dal Watch.
+  **È volutamente separata da `gh issue create`:** GitHub accetta come assegnatari solo
+  i collaboratori, e un `--assignee` rifiutato dentro la create impedirebbe di aprire
+  la issue. Se l'assegnazione fallisce, parte un commento con `@ASSEGNATARIO`, che
+  notifica anche chi non è collaboratore. **Recapito di mail e push dopo la correzione:
+  non ancora verificato.**
+- **Lo schedule `0 4-18 * * *` ha prodotto 2–3 run al giorno invece di 15.** Il primo
+  non è mai partito prima delle 09:00 UTC, l'ultimo anche alle 22:48 UTC, cioè quasi
+  cinque ore dopo l'ultimo slot previsto. Ritardo tra pubblicazione e avviso sui 23
+  interpelli: mediana 3,2 h, massimo 7,5 h. Spostato al minuto 23, come raccomanda la
+  documentazione GitHub per evitare il carico di inizio ora. **Effetto non ancora
+  misurato:** ricontare i run per giorno dopo qualche giorno.
+- Il clone locale non si aggiorna da solo: lo stato vero è su `origin/main`. Prima di
+  giudicare `state/seen.json` serve un `git pull`.
 
 ## Cose note e non risolte
 
-- **Ritardi del cron GitHub:** 5–20 minuti nei momenti di picco. Accettato, irrilevante
-  con controllo orario.
+- **Affidabilità del cron GitHub:** vedi "Esercizio reale". Se anche al minuto 23 i
+  run restano 2–3 al giorno, l'alternativa è un trigger esterno gratuito (es.
+  cron-job.org) che chiama `workflow_dispatch` con un token a permessi minimi. Quella
+  soluzione introduce una credenziale e un account terzo, quindi la scelta spetta
+  all'utente.
 - **Sospensione dopo 60 giorni** di inattività del repo per i workflow schedulati. Ogni
   nuovo interpello produce un commit e resetta il contatore, ma un periodo lungo senza
   pubblicazioni (luglio–agosto) potrebbe farla scattare. Se succede: uno step che tocca

@@ -4,7 +4,9 @@ on:
   schedule:
     # Orari in UTC. 04:00-18:00 UTC copre circa le 06:00-19:00 italiane
     # sia con l'ora legale (UTC+2) sia con l'ora solare (UTC+1).
-    - cron: '0 4-18 * * *'
+    # Minuto 23 e non 0: allo scoccare dell'ora GitHub e' sotto carico e scarta
+    # i job schedulati. Con '0 4-18' sono partiti 2-3 run al giorno su 15.
+    - cron: '23 4-18 * * *'
   workflow_dispatch: # permette l'esecuzione manuale dalla tab Actions
 
 # Evita che due esecuzioni sovrapposte facciano a botte sul commit di stato.
@@ -42,6 +44,9 @@ jobs:
           # 'Interpello ... - "IC NARDI".' si spezza in due argomenti e gh
           # fallisce. Qui entra come variabile d'ambiente, mai come codice.
           TITOLO: ${{ steps.check.outputs.title }}
+          # Chi riceve l'avviso. L'assegnazione notifica anche senza Watch sul
+          # repo: senza, 13 issue erano state aperte in silenzio.
+          ASSEGNATARIO: valeriavitali01-hue
         run: |
           set -u
           # La label deve esistere, altrimenti gh issue create esce in errore.
@@ -50,22 +55,27 @@ jobs:
             --description "Nuovo interpello rilevato sul sito USP" 2>/dev/null || true
 
           # Quello che conta è ricevere l'avviso: il corpo è sacrificabile.
-          # Tre tentativi sempre piu' poveri, si esce al primo che riesce.
-          if gh issue create --title "$TITOLO" --body-file nuovi-interpelli.md --label interpello; then
-            exit 0
+          # Tre tentativi sempre piu' poveri, si tiene il primo che riesce.
+          if ! URL=$(gh issue create --title "$TITOLO" --body-file nuovi-interpelli.md --label interpello); then
+            echo "::warning::Issue completa rifiutata, riprovo con l'elenco breve."
+            if ! URL=$(gh issue create --title "$TITOLO" --body-file nuovi-interpelli-breve.md); then
+              echo "::warning::Anche l'elenco breve e' stato rifiutato, apro un avviso minimo."
+              URL=$(gh issue create \
+                --title "$TITOLO" \
+                --body "Nuovi interpelli pubblicati: https://www.uspascolipiceno.it/wordpress/interpelli/
+
+          Il corpo completo non e' stato accettato da GitHub: controlla il log del workflow.")
+            fi
           fi
 
-          echo "::warning::Issue completa rifiutata, riprovo con l'elenco breve."
-          if gh issue create --title "$TITOLO" --body-file nuovi-interpelli-breve.md; then
-            exit 0
+          # Assegnazione separata dalla creazione: GitHub accetta come assegnatari
+          # solo i collaboratori del repo, e un --assignee rifiutato dentro
+          # gh issue create impedirebbe di aprire la issue. Se fallisce, una
+          # menzione notifica comunque la persona.
+          if ! gh issue edit "$URL" --add-assignee "$ASSEGNATARIO"; then
+            echo "::warning::Assegnazione a $ASSEGNATARIO non riuscita: e' collaboratrice del repo?"
+            gh issue comment "$URL" --body "@$ASSEGNATARIO nuovi interpelli in questa issue." || true
           fi
-
-          echo "::warning::Anche l'elenco breve e' stato rifiutato, apro un avviso minimo."
-          gh issue create \
-            --title "$TITOLO" \
-            --body "Nuovi interpelli pubblicati: https://www.uspascolipiceno.it/wordpress/interpelli/
-
-          Il corpo completo non e' stato accettato da GitHub: controlla il log del workflow."
 
       # --- Notifica Telegram (opzionale) -------------------------------
       # Attiva solo se imposti i secret TELEGRAM_TOKEN e TELEGRAM_CHAT_ID.

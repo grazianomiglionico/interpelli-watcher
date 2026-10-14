@@ -12,7 +12,8 @@ nessun costo, funziona anche a computer spento.
 2. Tiene i post che contengono `interpell` nel **titolo**, nella **descrizione** o
    nel **contenuto**, oppure che stanno nella categoria *interpelli* (ID 350).
 3. Confronta gli ID con `state/seen.json`. Se ne trova di nuovi, apre una **issue**
-   su questo repository — GitHub ti manda mail e notifica push in automatico.
+   su questo repository e la **assegna a chi deve candidarsi** (`ASSEGNATARIO` nel
+   workflow): l'assegnazione fa partire mail e notifica push anche senza Watch sul repo.
    La issue contiene titolo, data e i **link diretti ai PDF e ai moduli allegati**.
 4. Committa lo stato aggiornato, così al giro dopo non ti rinotifica le stesse cose.
 
@@ -71,8 +72,12 @@ ordina i post per l'istante reale (`date_gmt`).
 5. **Actions → Controllo interpelli → Run workflow** per la prima esecuzione manuale.
    Serve da taratura: segna gli interpelli già online come "visti" senza notificarti
    nulla. Da lì in avanti ti avvisa solo per le novità.
-6. Verifica di ricevere le notifiche: **Watch → All Activity** in alto a destra nel
-   repo, e la mail per le issue attiva nelle impostazioni del tuo account GitHub.
+6. **Settings → Collaborators → Add people**: invita l'account di `ASSEGNATARIO`, che
+   deve accettare l'invito. GitHub accetta come assegnatari solo i collaboratori; finché
+   non lo è, il workflow apre comunque la issue e la menziona in un commento.
+7. Nell'account di `ASSEGNATARIO`, **Settings → Notifications**, sotto *Participating,
+   @mentions and custom* devono essere attive la mail e/o *GitHub Mobile*. Assegnazioni
+   e menzioni rientrano lì.
 
 ## Verificare che funzioni davvero
 
@@ -96,9 +101,10 @@ Lo step è già nel workflow e si attiva da solo quando i secret esistono.
 
 ## Cose da sapere
 
-- **Ritardi del cron.** GitHub non garantisce l'orario esatto: nei momenti di picco un
-  job schedulato può partire con 5–20 minuti di ritardo. Irrilevante con un controllo
-  ogni ora.
+- **Il cron di GitHub non è affidabile.** Con il cron al minuto 0 sono partiti 2–3
+  controlli al giorno invece di 15, e l'avviso è arrivato in media 3 ore dopo la
+  pubblicazione (massimo 7,5). Ora il cron è al minuto 23, come raccomanda GitHub, ma
+  l'effetto va ancora misurato: controlla la tab Actions dopo qualche giorno.
 - **Disattivazione dopo 60 giorni.** GitHub sospende i workflow schedulati nei repo
   senza attività da 60 giorni (avvisa per mail prima). Ogni nuovo interpello produce un
   commit e resetta il contatore; in periodi lunghi senza pubblicazioni basta un commit
@@ -117,8 +123,9 @@ Lo step è già nel workflow e si attiva da solo quando i secret esistono.
 
 ## Modifiche frequenti
 
-- **Frequenza:** il `cron` nel workflow. `0 4-18 * * *` = ogni ora; `0,30 4-18 * * *`
-  = ogni mezz'ora.
+- **Frequenza:** il `cron` nel workflow. `23 4-18 * * *` = ogni ora;
+  `23,53 4-18 * * *` = ogni mezz'ora. Evita il minuto 0: è quello in cui GitHub scarta
+  più job.
 - **Parola chiave:** costante `KEYWORD` in `scripts/check-interpelli.mjs`.
 - **Escludere gli esiti:** nello stesso file, in `main()`, aggiungi
   `.filter((e) => !ESITO.test(e.titolo))` dopo `elementi.filter(eInterpello)`.
