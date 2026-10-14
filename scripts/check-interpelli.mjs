@@ -15,6 +15,8 @@
  *   "albo-pretorio" (post 26294, categories: [288]). Le due regole si coprono a vicenda.
  * - Descrizione e contenuto non hanno mai deciso da soli, ma restano nel filtro:
  *   il contenuto va scaricato comunque per estrarre gli allegati, quindi è gratis.
+ * - Si notifica solo la scuola primaria (misura del 14/10/2026 sugli stessi 101:
+ *   52 la nominano, 4 non dichiarano il grado e passano, 45 scartati).
  */
 
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
@@ -31,6 +33,15 @@ const KEYWORD = /interpell/i;    // copre interpello, interpelli, INTERPELLO...
 // "esito" deve riferirsi a un interpello: da solo marcherebbe anche titoli come
 // "Decreto esiti assegnazioni provvisorie e utilizzazioni", che interpelli non sono.
 const ESITO = /\besit[oi]\b[\s\S]{0,40}interpell/i;
+// Si notificano solo gli interpelli di scuola primaria (EEEE posto comune, ADEE
+// sostegno). Se il grado non si capisce, come nei post dell'USP con il solo
+// protocollo e il grado scritto nel PDF, si notifica comunque.
+const PRIMARIA = /primari[ao]|\bEEEE\b|\bADEE\b/i;
+// Segnali di un altro grado: secondaria (anche dal tipo di istituto e dalle classi
+// di concorso A042, AI55, BB02, ADMM, ADSS...), infanzia (AAAA, ADAA), ATA, DSGA,
+// personale educativo dei convitti.
+const ALTRO_GRADO =
+  /secondari[ao]|\b(I|II|1|2)\s*°\s*grado|\bliceo\b|\bI\.?\s?I\.?\s?S\b|\bIPSIA\b|istruzione superiore|istituto (tecnico|professionale)|concorso\s*[A-Z]{1,2}-?\d|\b[AB]-?\d{2,3}\b|\b[AB][A-Z]\d{2}\b|\bAD(MM|SS)\b|infanzia|\bAAAA\b|\bADAA\b|\bATA\b|collaborator[ei] scolastic|assistente (amministrativ|tecnic)|operatore|\bD\.?S\.?G\.?A\b|personale educativo|\bAA\b/i;
 const STATE_FILE = 'state/seen.json';
 const MAX_IDS_IN_STATE = 800;
 const TIMEOUT_MS = 20000;
@@ -246,6 +257,12 @@ function eInterpello(e) {
   );
 }
 
+/** Primaria dichiarata, oppure nessun segnale di un altro grado. */
+function ePrimaria(e) {
+  const testo = `${e.titolo} ${e.descrizione} ${e.testo}`;
+  return PRIMARIA.test(testo) || !ALTRO_GRADO.test(testo);
+}
+
 // -------------------------------------------------------------------- stato
 
 async function leggiStato() {
@@ -399,13 +416,22 @@ async function main() {
     return;
   }
 
-  log(`Trovati ${nuovi.length} nuovi interpelli:`);
-  for (const n of nuovi) log(` - ${n.titolo}`);
-
-  await writeFile('nuovi-interpelli.md', componiMessaggio(nuovi), 'utf8');
-  await writeFile('nuovi-interpelli-breve.md', componiMessaggioBreve(nuovi), 'utf8');
+  // Nello stato finiscono tutti i nuovi, anche quelli scartati per grado: se un
+  // giorno il filtro si allarga, non arriva di colpo tutto lo storico.
   await scriviStato([...nuovi.map((e) => e.id), ...stato.ids]);
-  await pubblicaOutput(true, titoloNotifica(nuovi), nuovi.length);
+  const daNotificare = nuovi.filter(ePrimaria);
+
+  log(`Trovati ${nuovi.length} nuovi interpelli, ${daNotificare.length} di scuola primaria:`);
+  for (const n of nuovi) log(` ${daNotificare.includes(n) ? '+' : '-'} ${n.titolo}`);
+
+  if (daNotificare.length === 0) {
+    await pubblicaOutput(false);
+    return;
+  }
+
+  await writeFile('nuovi-interpelli.md', componiMessaggio(daNotificare), 'utf8');
+  await writeFile('nuovi-interpelli-breve.md', componiMessaggioBreve(daNotificare), 'utf8');
+  await pubblicaOutput(true, titoloNotifica(daNotificare), daNotificare.length);
 }
 
 main().catch((err) => {

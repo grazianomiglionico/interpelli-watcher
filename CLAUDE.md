@@ -94,6 +94,18 @@ allinearsi al suo orario evita che l'utente pensi a un bug.
    Il regex richiede che `esito`/`esiti` sia vicino a `interpell`: da solo marcherebbe
    anche titoli come `Decreto esiti assegnazioni provvisorie e utilizzazioni`, che
    interpelli non sono.
+6. **Solo scuola primaria** (richiesta dell'utente del 14/10/2026). `ePrimaria`
+   notifica se titolo, descrizione o contenuto nominano la primaria (`primaria`,
+   `EEEE`, `ADEE`), **oppure se non c'è nessun segnale di un altro grado**
+   (`ALTRO_GRADO`: secondaria, istituti superiori, classi di concorso, infanzia, ATA,
+   DSGA, personale educativo). Il secondo ramo è una **scelta esplicita
+   dell'utente**: i post dell'USP con il solo numero di protocollo hanno il grado
+   scritto solo nel PDF, ed è meglio riceverli che perderli. Misura sui 101
+   interpelli reali: 52 primaria esplicita, 4 senza grado (1 interpello, 3 esiti),
+   45 scartati, nessuno dei quali di primaria a un controllo manuale.
+   Falso positivo noto: `Classe di concorsoAS2A` (25564) scritto senza spazio.
+7. **Nello stato finiscono tutti i nuovi interpelli, anche quelli scartati per
+   grado.** Se il filtro si allarga, non arriva di colpo tutto lo storico.
 
 **Compromesso accettato consapevolmente:** il filtro è volutamente largo e produce
 qualche falso positivo. Un avviso di troppo si ignora, un interpello perso no. Non
